@@ -4,42 +4,52 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
-# CORS middleware for frontend-backend communication
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, set this to your frontend domain
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Input model
 class Meal(BaseModel):
-    protein_g: float
-    carbs_g: float
-    fats_g: float
+    protein: float
+    carbs: float
+    fats: float
+    weight: float
+    age: float
+    activity_level: str
     total_calories: float
 
 
 @app.post("/calculate-tef")
 def calculate_tef(meal: Meal):
-    # TEF Factors
     tef_protein = 0.25
     tef_carbs = 0.08
     tef_fats = 0.03
 
-    # Calculate TEF
-    tef = (
-        meal.protein_g * 4 * tef_protein +
-        meal.carbs_g * 4 * tef_carbs +
-        meal.fats_g * 9 * tef_fats
+    # Personalization Factor — Basic Example
+    activity_multiplier = {
+        "Sedentary": 1.0,
+        "Lightly Active": 1.05,
+        "Active": 1.1,
+        "Very Active": 1.15,
+    }
+
+    multiplier = activity_multiplier.get(meal.activity_level, 1.0)
+
+    base_tef = (
+        meal.protein * 4 * tef_protein +
+        meal.carbs * 4 * tef_carbs +
+        meal.fats * 9 * tef_fats
     )
 
+    tef = base_tef * multiplier
     adjusted_net_calories = meal.total_calories - tef
 
     return {
         "logged_calories": meal.total_calories,
         "estimated_tef": round(tef, 2),
         "adjusted_net_calories": round(adjusted_net_calories, 2),
-        "notes": "TEF varies per individual. This is an estimated adjustment.",
+        "notes": "TEF varies per individual based on lifestyle and body metrics.",
     }
